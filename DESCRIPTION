@@ -1,7 +1,7 @@
 Package: constellation
 Type: Package
 Title: Identify Event Sequences Using Time Series Joins
-Version: 0.0.1
+Version: 0.1.0
 Date: 2017-10-30
 Depends: R (>= 3.0.0)
 Imports: data.table (>= 1.9.5), fasttime (>= 1.0-2)
@@ -23,8 +23,8 @@ RoxygenNote: 6.0.1
 VignetteBuilder: knitr
 Encoding: UTF-8
 NeedsCompilation: no
-Packaged: 2017-10-30 15:34:30 UTC; sommpd10
+Packaged: 2017-11-30 18:41:40 UTC; mpd10
 Author: Mark Sendak [aut, cre]
 Maintainer: Mark Sendak <mark.sendak@gmail.com>
 Repository: CRAN
-Date/Publication: 2017-11-02 09:49:23 UTC
+Date/Publication: 2017-11-30 19:07:46 UTC

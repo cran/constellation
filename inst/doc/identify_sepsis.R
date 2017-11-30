@@ -1,10 +1,8 @@
 ## ----vignette_view, message = FALSE, eval = FALSE------------------------
-#  devtools::install_github("marksendak/constellation", build_vignettes = TRUE)
 #  library(constellation)
 #  vignette("identify_sepsis", package = "constellation")
 
 ## ----setup, message = FALSE----------------------------------------------
-devtools::install_github("marksendak/constellation")
 library(constellation)
 library(data.table)
 library(fasttime)

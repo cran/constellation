@@ -5,12 +5,11 @@
 ## ----setup, message = FALSE----------------------------------------------
 library(constellation)
 library(data.table)
-library(fasttime)
 
 ## ----timestamps, message = FALSE-----------------------------------------
 for (dt in list(vitals, labs, orders)) {
     date_col <- grep("TIME", names(dt), value = TRUE)
-    set(dt, j = date_col, value = fastPOSIXct(dt[[date_col]]))
+    set(dt, j = date_col, value = as.POSIXct(dt[[date_col]], format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"))
 }
 
 ## ----bp_drop, message = FALSE--------------------------------------------
@@ -63,13 +62,6 @@ end_organ <- rbind(end_organ, systolic_bp, systolic_bp_drop)
 ## ----bc_orders, message = FALSE------------------------------------------
 setnames(orders, "ORDER_TIME", "RECORDED_TIME")
 
-## ----sepsis_def_all, message = FALSE-------------------------------------
-## Find all sepsis events
-sepsis <- constellate(sirs, orders, end_organ, window_hours = c(24, 24, 24),
-    join_key = "PAT_ID", time_var = "RECORDED_TIME", event_name = "SEPSIS",
-    mult = "all")
-head(sepsis)
-
 ## ----sepsis_def_first, message = FALSE-----------------------------------
 ## Find first sepsis events
 sepsis <- constellate(sirs, orders, end_organ, window_hours = c(24, 24, 24),
@@ -82,5 +74,17 @@ head(sepsis)
 sepsis <- constellate(sirs, orders, end_organ, window_hours = c(24, 24, 24),
     join_key = "PAT_ID", time_var = "RECORDED_TIME", event_name = "SEPSIS",
     mult = "last")
+head(sepsis)
+
+## ----sepsis_def_all, message = FALSE-------------------------------------
+## Find all sepsis events
+sepsis <- constellate(sirs, orders, end_organ, window_hours = c(24, 24, 24),
+    join_key = "PAT_ID", time_var = "RECORDED_TIME", event_name = "SEPSIS",
+    mult = "all")
+head(sepsis)
+
+## ----sepsis_incidents, message = FALSE-----------------------------------
+## Find incident sepsis events for each patient
+sepsis <- incidents(sepsis, window_hours = 72, time_var = "SEPSIS_TIME", join_key = "PAT_ID")
 head(sepsis)
 

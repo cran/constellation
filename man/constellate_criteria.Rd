@@ -23,9 +23,9 @@ vector should align with the order of data frames passed in '...'.}
 frames}
 
 \item{time_var}{A string name of the time stamp column in all time series
-data frames}
+data frames. The class of time_var must be POSIXct in all data frames.}
 
-\item{value}{A string specifying the value to be entered within each 
+\item{value}{A string specifying the value to be entered within each
 criteria column. Options include boolean (0 or 1, depdending on whether
 the criteria event occurred), the time of the criteria event, or the
 result stored within the criteria event. The default value is boolean.}
@@ -51,7 +51,8 @@ A function that reads in multiple time series data frames for various events
 The user passes an arbitrary number of time series data frames and
  specifies a name and number of hours to search for each event. The user
  must also specify a variable to use to join the tables, and the time stamp
- variable. Finally, the user selects how to populate the individual event 
+ variable. The timestamps variable in every data frame must be POSIXct
+ class. Finally, the user selects how to populate the individual event
  variables.
 
 This function extends the constellate function to address a different set
@@ -59,7 +60,7 @@ This function extends the constellate function to address a different set
  not occur? 2) what is the sequence of events that trigger the constellation
  of events that I'm interested in? 3) What are the results of each criteria
  at the times that each criteria are met?
-This function can be used to calculate risk scores at any measurement 
+This function can be used to calculate risk scores at any measurement
  timestamp by building a new variable after the function runs and returns
  the new data frame. The risk score can add up the crieteria from boolean
  values (e.g.
@@ -69,7 +70,7 @@ This function can be used to calculate risk scores at any measurement
 }
 \section{Imported functions}{
 
-fastPOSIXct() from fasttime package and data.table syntax
+general data.table syntax
 }
 
 \section{Errors}{
@@ -94,6 +95,13 @@ temp <- as.data.table(vitals[VARIABLE == "TEMPERATURE"])
 pulse <- as.data.table(vitals[VARIABLE == "PULSE"])
 resp <- as.data.table(vitals[VARIABLE == "RESPIRATORY_RATE"])
 
+temp[, RECORDED_TIME := as.POSIXct(RECORDED_TIME,
+  format = "\%Y-\%m-\%dT\%H:\%M:\%SZ", tz = "UTC")]
+pulse[, RECORDED_TIME := as.POSIXct(RECORDED_TIME,
+  format = "\%Y-\%m-\%dT\%H:\%M:\%SZ", tz = "UTC")]
+resp[, RECORDED_TIME := as.POSIXct(RECORDED_TIME,
+  format = "\%Y-\%m-\%dT\%H:\%M:\%SZ", tz = "UTC")]
+
 # Pass single window_hours
 constellate_criteria(temp, pulse, resp, criteria_names = c("TEMPERATURE",
  "PULSE", "RESPIRATORY_RATE"), window_hours = 6, join_key = "PAT_ID",
@@ -105,6 +113,7 @@ constellate_criteria(temp, pulse, resp, criteria_names = c("TEMPERATURE",
 # Show the value of each criteria at the time the event occurs
 constellate_criteria(temp, pulse, resp, criteria_names = c("TEMPERATURE",
  "PULSE", "RESPIRATORY_RATE"), window_hours = c(6,6,6), join_key =
- "PAT_ID", time_var = "RECORDED_TIME", value = "result", result_var = "VALUE")
+ "PAT_ID", time_var = "RECORDED_TIME", value = "result",
+ result_var = "VALUE")
 
 }

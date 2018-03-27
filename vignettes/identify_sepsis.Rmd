@@ -24,7 +24,7 @@ Implementing a sepsis definition motivated development of the constellation pack
     + Creatinine > 2.0 (**24 hours**)
     + INR > 1.5 (**24 hours**)
     + Total bilirubin > 2.0 (**24 hours**)
-    + systolic BP < 90 or decrease in SBP by > 40 over 6 hours (**6 hours**)
+    + systolic BP < 90 or decrease in SBP by > 40 over 6 hours (**24 hours**)
     + Platelets < 100 (**24 hours**)
     + Lactate >= 2 (**24 hours**)
 
@@ -35,6 +35,8 @@ There are 3 steps to identify sepsis and each step corresponds to a constellatio
 1. Identify instances of systolic blood pressure drops > 40 over 6 hours (**value_change()** function)
 2. Identify instances of SIRS >= 2 (**constellate_criteria()** function)
 3. Identify instances in which patients have SIRS >= 2, a blood culture order, and evidence of end organ damage (**constellate()** function)
+
+Lastly, it may be required to separate distinct sepsis episodes during a single inpatient admission. For example, you may consider that sepsis events separated by more than 72 hours are distinct episodes that require additional evaluation and treatment. Thus, instances within 72 hours of an incident event are considered to be the same episode and instances separated by a minimum of 72 hours are considered to be distinct episodes. This logic is implemented via the **incidents()** function. 
 
 ## View Vignette with Output
 
@@ -50,14 +52,13 @@ First, load constellation and fasttime
 ```{r setup, message = FALSE}
 library(constellation)
 library(data.table)
-library(fasttime)
 ```
 
 Next, prep the timestamps
 ```{r timestamps, message = FALSE}
 for (dt in list(vitals, labs, orders)) {
     date_col <- grep("TIME", names(dt), value = TRUE)
-    set(dt, j = date_col, value = fastPOSIXct(dt[[date_col]]))
+    set(dt, j = date_col, value = as.POSIXct(dt[[date_col]], format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"))
 }
 ```
 
@@ -136,15 +137,6 @@ setnames(orders, "ORDER_TIME", "RECORDED_TIME")
 
 #### Run constellate()
 
-Calculate every instance in which all 3 criteria are met for every patient.
-```{r sepsis_def_all, message = FALSE}
-## Find all sepsis events
-sepsis <- constellate(sirs, orders, end_organ, window_hours = c(24, 24, 24),
-    join_key = "PAT_ID", time_var = "RECORDED_TIME", event_name = "SEPSIS",
-    mult = "all")
-head(sepsis)
-```
-
 Calculate the first instant in which all 3 criteria are met for every patient.
 ```{r sepsis_def_first, message = FALSE}
 ## Find first sepsis events
@@ -163,6 +155,23 @@ sepsis <- constellate(sirs, orders, end_organ, window_hours = c(24, 24, 24),
 head(sepsis)
 ```
 
+Calculate every instance in which all 3 criteria are met for every patient.
+```{r sepsis_def_all, message = FALSE}
+## Find all sepsis events
+sepsis <- constellate(sirs, orders, end_organ, window_hours = c(24, 24, 24),
+    join_key = "PAT_ID", time_var = "RECORDED_TIME", event_name = "SEPSIS",
+    mult = "all")
+head(sepsis)
+```
+
+## Separate incident sepsis events for every patient
+Separate sepsis events that occur more than 72 hours apart for each patient.
+```{r sepsis_incidents, message = FALSE}
+## Find incident sepsis events for each patient
+sepsis <- incidents(sepsis, window_hours = 72, time_var = "SEPSIS_TIME", join_key = "PAT_ID")
+head(sepsis)
+```
+
 ## Technical References
 
-If you'd like to learn more about our sepsis model, please see our publications from the [International Conerence on Machine Learning](https://arxiv.org/abs/1706.04152) and [Machine Learning in Health Care](https://arxiv.org/pdf/1708.05894.pdf). 
+If you'd like to learn more about our sepsis model, please see our publications from the [International Conerence on Machine Learning](http://proceedings.mlr.press/v70/futoma17a/futoma17a.pdf) and [Machine Learning in Health Care](http://mucmd.org/CameraReadySubmissions/53%5CCameraReadySubmission%5CCR.pdf). 

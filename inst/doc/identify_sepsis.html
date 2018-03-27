@@ -12,7 +12,7 @@
 
 <meta name="author" content="Mark Sendak" />
 
-<meta name="date" content="2017-11-30" />
+<meta name="date" content="2018-03-26" />
 
 <title>Using Constellation to Identify Sepsis</title>
 
@@ -268,7 +268,7 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 
 <h1 class="title toc-ignore">Using Constellation to Identify Sepsis</h1>
 <h4 class="author"><em>Mark Sendak</em></h4>
-<h4 class="date"><em>2017-11-30</em></h4>
+<h4 class="date"><em>2018-03-26</em></h4>
 
 
 
@@ -289,7 +289,7 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 <li>Creatinine &gt; 2.0 (<strong>24 hours</strong>)</li>
 <li>INR &gt; 1.5 (<strong>24 hours</strong>)</li>
 <li>Total bilirubin &gt; 2.0 (<strong>24 hours</strong>)</li>
-<li>systolic BP &lt; 90 or decrease in SBP by &gt; 40 over 6 hours (<strong>6 hours</strong>)</li>
+<li>systolic BP &lt; 90 or decrease in SBP by &gt; 40 over 6 hours (<strong>24 hours</strong>)</li>
 <li>Platelets &lt; 100 (<strong>24 hours</strong>)</li>
 <li>Lactate &gt;= 2 (<strong>24 hours</strong>)</li>
 </ul></li>
@@ -301,6 +301,7 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 <li>Identify instances of SIRS &gt;= 2 (<strong>constellate_criteria()</strong> function)</li>
 <li>Identify instances in which patients have SIRS &gt;= 2, a blood culture order, and evidence of end organ damage (<strong>constellate()</strong> function)</li>
 </ol>
+<p>Lastly, it may be required to separate distinct sepsis episodes during a single inpatient admission. For example, you may consider that sepsis events separated by more than 72 hours are distinct episodes that require additional evaluation and treatment. Thus, instances within 72 hours of an incident event are considered to be the same episode and instances separated by a minimum of 72 hours are considered to be distinct episodes. This logic is implemented via the <strong>incidents()</strong> function.</p>
 </section>
 <section id="view-vignette-with-output" class="level2">
 <h2>View Vignette with Output</h2>
@@ -312,12 +313,11 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 <h2>Environment and Data Prep</h2>
 <p>First, load constellation and fasttime</p>
 <pre class="sourceCode r" id="cb2"><code class="sourceCode r"><div class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">library</span>(constellation)</div>
-<div class="sourceLine" id="cb2-2" data-line-number="2"><span class="kw">library</span>(data.table)</div>
-<div class="sourceLine" id="cb2-3" data-line-number="3"><span class="kw">library</span>(fasttime)</div></code></pre>
+<div class="sourceLine" id="cb2-2" data-line-number="2"><span class="kw">library</span>(data.table)</div></code></pre>
 <p>Next, prep the timestamps</p>
 <pre class="sourceCode r" id="cb3"><code class="sourceCode r"><div class="sourceLine" id="cb3-1" data-line-number="1"><span class="cf">for</span> (dt <span class="cf">in</span> <span class="kw">list</span>(vitals, labs, orders)) {</div>
 <div class="sourceLine" id="cb3-2" data-line-number="2">    date_col &lt;-<span class="st"> </span><span class="kw">grep</span>(<span class="st">&quot;TIME&quot;</span>, <span class="kw">names</span>(dt), <span class="dt">value =</span> <span class="ot">TRUE</span>)</div>
-<div class="sourceLine" id="cb3-3" data-line-number="3">    <span class="kw">set</span>(dt, <span class="dt">j =</span> date_col, <span class="dt">value =</span> <span class="kw">fastPOSIXct</span>(dt[[date_col]]))</div>
+<div class="sourceLine" id="cb3-3" data-line-number="3">    <span class="kw">set</span>(dt, <span class="dt">j =</span> date_col, <span class="dt">value =</span> <span class="kw">as.POSIXct</span>(dt[[date_col]], <span class="dt">format =</span> <span class="st">&quot;%Y-%m-%dT%H:%M:%SZ&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;UTC&quot;</span>))</div>
 <div class="sourceLine" id="cb3-4" data-line-number="4">}</div></code></pre>
 </section>
 <section id="value_change---identify-systolic-blood-pressure-drops" class="level2">
@@ -330,12 +330,12 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 <div class="sourceLine" id="cb4-5" data-line-number="5">    <span class="dt">value_var =</span> <span class="st">&quot;VALUE&quot;</span>, <span class="dt">mult =</span> <span class="st">&quot;all&quot;</span>)</div>
 <div class="sourceLine" id="cb4-6" data-line-number="6"><span class="kw">head</span>(systolic_bp_drop)</div></code></pre>
 <pre><code>##    PAT_ID PRIOR_RECORDED_TIME PRIOR_VALUE CURRENT_RECORDED_TIME
-## 1: 108546 2010-02-25 10:45:29    139.9967   2010-02-25 15:42:35
-## 2: 108546 2010-03-01 10:57:24    136.8654   2010-03-01 11:07:00
-## 3: 108546 2010-03-02 14:59:20    129.0167   2010-03-02 19:46:35
-## 4: 108546 2010-03-02 15:49:00    110.1830   2010-03-02 19:46:35
-## 5: 108546 2010-03-03 19:18:41    137.8095   2010-03-03 23:23:54
-## 6: 108546 2010-03-03 21:13:39    130.3280   2010-03-03 23:23:54
+## 1: 108546 2010-02-25 15:45:29    139.9967   2010-02-25 20:42:35
+## 2: 108546 2010-03-01 15:57:24    136.8654   2010-03-01 16:07:00
+## 3: 108546 2010-03-02 19:59:20    129.0167   2010-03-03 00:46:35
+## 4: 108546 2010-03-02 20:49:00    110.1830   2010-03-03 00:46:35
+## 5: 108546 2010-03-04 00:18:41    137.8095   2010-03-04 04:23:54
+## 6: 108546 2010-03-04 02:13:39    130.3280   2010-03-04 04:23:54
 ##    CURRENT_VALUE
 ## 1:      80.07446
 ## 2:      88.88972
@@ -358,23 +358,23 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 <div class="sourceLine" id="cb7-4" data-line-number="4">        <span class="dt">time_var =</span> <span class="st">&quot;RECORDED_TIME&quot;</span>)</div>
 <div class="sourceLine" id="cb7-5" data-line-number="5"><span class="kw">head</span>(sirs)</div></code></pre>
 <pre><code>##    PAT_ID       RECORDED_TIME TEMPERATURE PULSE RESPIRATORY_RATE WBC
-## 1: 108546 2010-02-25 00:46:27           0     1                0   0
-## 2: 108546 2010-02-25 01:00:38           0     1                0   0
-## 3: 108546 2010-02-25 01:37:13           0     1                1   0
-## 4: 108546 2010-02-25 02:50:34           0     1                1   0
-## 5: 108546 2010-02-25 03:19:12           0     1                1   0
-## 6: 108546 2010-02-25 03:23:08           0     1                1   0</code></pre>
+## 1: 108546 2010-02-25 05:46:27           0     1                0   0
+## 2: 108546 2010-02-25 06:00:38           0     1                0   0
+## 3: 108546 2010-02-25 06:37:13           0     1                1   0
+## 4: 108546 2010-02-25 07:50:34           0     1                1   0
+## 5: 108546 2010-02-25 08:19:12           0     1                1   0
+## 6: 108546 2010-02-25 08:23:08           0     1                1   0</code></pre>
 <p>Sum values in the 4 columns to calculate SIRS score at every measurement time and subset to instances where SIRS &gt;= 2</p>
 <pre class="sourceCode r" id="cb9"><code class="sourceCode r"><div class="sourceLine" id="cb9-1" data-line-number="1">sirs[, SIRS_SCORE <span class="op">:</span><span class="er">=</span><span class="st"> </span>TEMPERATURE <span class="op">+</span><span class="st"> </span>PULSE <span class="op">+</span><span class="st"> </span>RESPIRATORY_RATE <span class="op">+</span><span class="st"> </span>WBC]</div>
 <div class="sourceLine" id="cb9-2" data-line-number="2">sirs &lt;-<span class="st"> </span>sirs[SIRS_SCORE <span class="op">&gt;=</span><span class="st"> </span><span class="dv">2</span>]</div>
 <div class="sourceLine" id="cb9-3" data-line-number="3"><span class="kw">head</span>(sirs)</div></code></pre>
 <pre><code>##    PAT_ID       RECORDED_TIME TEMPERATURE PULSE RESPIRATORY_RATE WBC
-## 1: 108546 2010-02-25 01:37:13           0     1                1   0
-## 2: 108546 2010-02-25 02:50:34           0     1                1   0
-## 3: 108546 2010-02-25 03:19:12           0     1                1   0
-## 4: 108546 2010-02-25 03:23:08           0     1                1   0
-## 5: 108546 2010-02-25 03:30:46           0     1                1   0
-## 6: 108546 2010-02-25 04:47:14           0     1                1   0
+## 1: 108546 2010-02-25 06:37:13           0     1                1   0
+## 2: 108546 2010-02-25 07:50:34           0     1                1   0
+## 3: 108546 2010-02-25 08:19:12           0     1                1   0
+## 4: 108546 2010-02-25 08:23:08           0     1                1   0
+## 5: 108546 2010-02-25 08:30:46           0     1                1   0
+## 6: 108546 2010-02-25 09:47:14           0     1                1   0
 ##    SIRS_SCORE
 ## 1:          2
 ## 2:          2
@@ -415,50 +415,64 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 </section>
 <section id="run-constellate" class="level4">
 <h4>Run constellate()</h4>
-<p>Calculate every instance in which all 3 criteria are met for every patient.</p>
-<pre class="sourceCode r" id="cb13"><code class="sourceCode r"><div class="sourceLine" id="cb13-1" data-line-number="1">## Find all sepsis events</div>
+<p>Calculate the first instant in which all 3 criteria are met for every patient.</p>
+<pre class="sourceCode r" id="cb13"><code class="sourceCode r"><div class="sourceLine" id="cb13-1" data-line-number="1">## Find first sepsis events</div>
 <div class="sourceLine" id="cb13-2" data-line-number="2">sepsis &lt;-<span class="st"> </span><span class="kw">constellate</span>(sirs, orders, end_organ, <span class="dt">window_hours =</span> <span class="kw">c</span>(<span class="dv">24</span>, <span class="dv">24</span>, <span class="dv">24</span>),</div>
 <div class="sourceLine" id="cb13-3" data-line-number="3">    <span class="dt">join_key =</span> <span class="st">&quot;PAT_ID&quot;</span>, <span class="dt">time_var =</span> <span class="st">&quot;RECORDED_TIME&quot;</span>, <span class="dt">event_name =</span> <span class="st">&quot;SEPSIS&quot;</span>,</div>
-<div class="sourceLine" id="cb13-4" data-line-number="4">    <span class="dt">mult =</span> <span class="st">&quot;all&quot;</span>)</div>
+<div class="sourceLine" id="cb13-4" data-line-number="4">    <span class="dt">mult =</span> <span class="st">&quot;first&quot;</span>)</div>
 <div class="sourceLine" id="cb13-5" data-line-number="5"><span class="kw">head</span>(sepsis)</div></code></pre>
 <pre><code>##    PAT_ID         SEPSIS_TIME
-## 1: 108546 2010-02-25 17:49:06
-## 2: 108546 2010-02-25 18:11:45
-## 3: 108546 2010-02-25 18:21:19
-## 4: 108546 2010-02-25 18:46:15
-## 5: 108546 2010-02-25 18:55:56
-## 6: 108546 2010-02-25 19:13:26</code></pre>
-<p>Calculate the first instant in which all 3 criteria are met for every patient.</p>
-<pre class="sourceCode r" id="cb15"><code class="sourceCode r"><div class="sourceLine" id="cb15-1" data-line-number="1">## Find first sepsis events</div>
+## 1: 108546 2010-02-25 22:49:06
+## 2: 112374 2010-03-09 15:50:31
+## 3: 244011 2010-12-05 14:05:25
+## 4: 262980 2010-10-31 13:01:11
+## 5: 296914 2010-06-16 07:28:30
+## 6: 315107 2010-11-10 03:46:47</code></pre>
+<p>Calculate the last instant in which all 3 criteria are met for every patient.</p>
+<pre class="sourceCode r" id="cb15"><code class="sourceCode r"><div class="sourceLine" id="cb15-1" data-line-number="1">## Find last sepsis events</div>
 <div class="sourceLine" id="cb15-2" data-line-number="2">sepsis &lt;-<span class="st"> </span><span class="kw">constellate</span>(sirs, orders, end_organ, <span class="dt">window_hours =</span> <span class="kw">c</span>(<span class="dv">24</span>, <span class="dv">24</span>, <span class="dv">24</span>),</div>
 <div class="sourceLine" id="cb15-3" data-line-number="3">    <span class="dt">join_key =</span> <span class="st">&quot;PAT_ID&quot;</span>, <span class="dt">time_var =</span> <span class="st">&quot;RECORDED_TIME&quot;</span>, <span class="dt">event_name =</span> <span class="st">&quot;SEPSIS&quot;</span>,</div>
-<div class="sourceLine" id="cb15-4" data-line-number="4">    <span class="dt">mult =</span> <span class="st">&quot;first&quot;</span>)</div>
+<div class="sourceLine" id="cb15-4" data-line-number="4">    <span class="dt">mult =</span> <span class="st">&quot;last&quot;</span>)</div>
 <div class="sourceLine" id="cb15-5" data-line-number="5"><span class="kw">head</span>(sepsis)</div></code></pre>
 <pre><code>##    PAT_ID         SEPSIS_TIME
-## 1: 108546 2010-02-25 17:49:06
-## 2: 112374 2010-03-09 10:48:09
-## 3: 244011 2010-12-05 09:05:25
-## 4: 262980 2010-10-31 05:01:11
-## 5: 296914 2010-06-16 03:28:30
-## 6: 315107 2010-11-09 17:46:47</code></pre>
-<p>Calculate the last instant in which all 3 criteria are met for every patient.</p>
-<pre class="sourceCode r" id="cb17"><code class="sourceCode r"><div class="sourceLine" id="cb17-1" data-line-number="1">## Find last sepsis events</div>
+## 1: 108546 2010-06-03 16:26:05
+## 2: 112374 2010-03-10 13:43:00
+## 3: 244011 2010-12-09 04:47:59
+## 4: 262980 2010-10-31 13:01:11
+## 5: 296914 2010-06-16 13:57:53
+## 6: 315107 2010-11-10 03:46:47</code></pre>
+<p>Calculate every instance in which all 3 criteria are met for every patient.</p>
+<pre class="sourceCode r" id="cb17"><code class="sourceCode r"><div class="sourceLine" id="cb17-1" data-line-number="1">## Find all sepsis events</div>
 <div class="sourceLine" id="cb17-2" data-line-number="2">sepsis &lt;-<span class="st"> </span><span class="kw">constellate</span>(sirs, orders, end_organ, <span class="dt">window_hours =</span> <span class="kw">c</span>(<span class="dv">24</span>, <span class="dv">24</span>, <span class="dv">24</span>),</div>
 <div class="sourceLine" id="cb17-3" data-line-number="3">    <span class="dt">join_key =</span> <span class="st">&quot;PAT_ID&quot;</span>, <span class="dt">time_var =</span> <span class="st">&quot;RECORDED_TIME&quot;</span>, <span class="dt">event_name =</span> <span class="st">&quot;SEPSIS&quot;</span>,</div>
-<div class="sourceLine" id="cb17-4" data-line-number="4">    <span class="dt">mult =</span> <span class="st">&quot;last&quot;</span>)</div>
+<div class="sourceLine" id="cb17-4" data-line-number="4">    <span class="dt">mult =</span> <span class="st">&quot;all&quot;</span>)</div>
 <div class="sourceLine" id="cb17-5" data-line-number="5"><span class="kw">head</span>(sepsis)</div></code></pre>
 <pre><code>##    PAT_ID         SEPSIS_TIME
-## 1: 108546 2010-06-03 12:26:05
-## 2: 112374 2010-03-10 08:43:00
-## 3: 244011 2010-12-08 23:47:59
-## 4: 262980 2010-10-31 05:01:11
-## 5: 296914 2010-06-16 09:57:53
-## 6: 315107 2010-11-09 20:20:17</code></pre>
+## 1: 108546 2010-02-25 22:49:06
+## 2: 108546 2010-02-25 23:11:45
+## 3: 108546 2010-02-25 23:21:19
+## 4: 108546 2010-02-25 23:46:15
+## 5: 108546 2010-02-25 23:55:56
+## 6: 108546 2010-02-26 00:13:26</code></pre>
 </section>
+</section>
+<section id="separate-incident-sepsis-events-for-every-patient" class="level2">
+<h2>Separate incident sepsis events for every patient</h2>
+<p>Separate sepsis events that occur more than 72 hours apart for each patient.</p>
+<pre class="sourceCode r" id="cb19"><code class="sourceCode r"><div class="sourceLine" id="cb19-1" data-line-number="1">## Find incident sepsis events for each patient</div>
+<div class="sourceLine" id="cb19-2" data-line-number="2">sepsis &lt;-<span class="st"> </span><span class="kw">incidents</span>(sepsis, <span class="dt">window_hours =</span> <span class="dv">72</span>, <span class="dt">time_var =</span> <span class="st">&quot;SEPSIS_TIME&quot;</span>, <span class="dt">join_key =</span> <span class="st">&quot;PAT_ID&quot;</span>)</div>
+<div class="sourceLine" id="cb19-3" data-line-number="3"><span class="kw">head</span>(sepsis)</div></code></pre>
+<pre><code>##    PAT_ID         SEPSIS_TIME
+## 1: 108546 2010-02-25 22:49:06
+## 2: 108546 2010-03-09 06:05:38
+## 3: 108546 2010-03-14 14:01:59
+## 4: 108546 2010-03-17 18:47:53
+## 5: 108546 2010-03-22 17:15:46
+## 6: 108546 2010-04-03 01:39:03</code></pre>
 </section>
 <section id="technical-references" class="level2">
 <h2>Technical References</h2>
-<p>If you’d like to learn more about our sepsis model, please see our publications from the <a href="https://arxiv.org/abs/1706.04152">International Conerence on Machine Learning</a> and <a href="https://arxiv.org/pdf/1708.05894.pdf">Machine Learning in Health Care</a>.</p>
+<p>If you’d like to learn more about our sepsis model, please see our publications from the <a href="http://proceedings.mlr.press/v70/futoma17a/futoma17a.pdf">International Conerence on Machine Learning</a> and <a href="http://mucmd.org/CameraReadySubmissions/53%5CCameraReadySubmission%5CCR.pdf">Machine Learning in Health Care</a>.</p>
 </section>
 
 

@@ -5,12 +5,13 @@
 #'  within a specified number from a timestamp are flagged. The variables for
 #'  each event can be populated with the time the event took place, a boolean
 #'  variable (0 or 1) indicating whether or not the event took place, or the
-#'  result of the variable at the time the event took place. 
+#'  result of the variable at the time the event took place.
 #'
 #' The user passes an arbitrary number of time series data frames and
 #'  specifies a name and number of hours to search for each event. The user
 #'  must also specify a variable to use to join the tables, and the time stamp
-#'  variable. Finally, the user selects how to populate the individual event 
+#'  variable. The timestamps variable in every data frame must be POSIXct
+#'  class. Finally, the user selects how to populate the individual event
 #'  variables.
 #'
 #' This function extends the constellate function to address a different set
@@ -18,7 +19,7 @@
 #'  not occur? 2) what is the sequence of events that trigger the constellation
 #'  of events that I'm interested in? 3) What are the results of each criteria
 #'  at the times that each criteria are met?
-#' This function can be used to calculate risk scores at any measurement 
+#' This function can be used to calculate risk scores at any measurement
 #'  timestamp by building a new variable after the function runs and returns
 #'  the new data frame. The risk score can add up the crieteria from boolean
 #'  values (e.g.
@@ -37,8 +38,8 @@
 #' @param join_key A string name of the column to join all time series data
 #'  frames
 #' @param time_var A string name of the time stamp column in all time series
-#'  data frames
-#' @param value A string specifying the value to be entered within each 
+#'  data frames. The class of time_var must be POSIXct in all data frames.
+#' @param value A string specifying the value to be entered within each
 #'  criteria column. Options include boolean (0 or 1, depdending on whether
 #'  the criteria event occurred), the time of the criteria event, or the
 #'  result stored within the criteria event. The default value is boolean.
@@ -51,7 +52,7 @@
 #'  all combined measurements.
 #'
 #' @section Imported functions:
-#' fastPOSIXct() from fasttime package and data.table syntax
+#' general data.table syntax
 #'
 #' @section Errors:
 #' This function returns errors for:
@@ -73,6 +74,13 @@
 #' pulse <- as.data.table(vitals[VARIABLE == "PULSE"])
 #' resp <- as.data.table(vitals[VARIABLE == "RESPIRATORY_RATE"])
 #'
+#' temp[, RECORDED_TIME := as.POSIXct(RECORDED_TIME,
+#'   format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")]
+#' pulse[, RECORDED_TIME := as.POSIXct(RECORDED_TIME,
+#'   format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")]
+#' resp[, RECORDED_TIME := as.POSIXct(RECORDED_TIME,
+#'   format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")]
+#'
 #' # Pass single window_hours
 #' constellate_criteria(temp, pulse, resp, criteria_names = c("TEMPERATURE",
 #'  "PULSE", "RESPIRATORY_RATE"), window_hours = 6, join_key = "PAT_ID",
@@ -84,7 +92,8 @@
 #' # Show the value of each criteria at the time the event occurs
 #' constellate_criteria(temp, pulse, resp, criteria_names = c("TEMPERATURE",
 #'  "PULSE", "RESPIRATORY_RATE"), window_hours = c(6,6,6), join_key =
-#'  "PAT_ID", time_var = "RECORDED_TIME", value = "result", result_var = "VALUE")
+#'  "PAT_ID", time_var = "RECORDED_TIME", value = "result",
+#'  result_var = "VALUE")
 #'
 #' @export
 
@@ -103,21 +112,31 @@ constellate_criteria <- function(..., criteria_names, window_hours, join_key,
   if (missing(time_var)) stop("Need to specify time_var")
   if (missing(criteria_names)) stop("Need to provide criteria_names")
 
-  # criteria_names must be strings
-  for (i in criteria_names) {
-    if (!is.character(i)) stop("All criteria_names must be strings")
-  }
-
-  # window_hours must be numeric and greater than 0
-  for (i in window_hours) {
-    if (!is.numeric(i)) stop("All window_hours must be numeric")
-  }
+  # Value argument not from set of options
+  value <- match.arg(value)
 
   # Ensure that first argument is data frames
   for (i in seq_len(length(criteria_list))) {
     if (!is.data.frame(criteria_list[[i]])) {
       stop("Need to pass only data frames in first argument")
     }
+  }
+
+  # criteria_names must be strings
+  for (i in criteria_names) {
+    if (!is.character(i)) stop("All criteria_names must be strings")
+  }
+
+  # window_hours must be numeric
+  for (i in window_hours) {
+    if (!is.numeric(i)) stop("All window_hours must be numeric")
+  }
+
+  # Number of window_hours is 1 or matches number of data frames passed
+  if (length(criteria_list) != length(window_hours) &
+      length(window_hours) != 1) {
+    stop(paste0("Need to pass a single window hour length for all criteria",
+      " data frames or a window hour length for each criteria data frame."))
   }
 
   # Ensure join_key and time_var are variables names in all data frames
@@ -130,20 +149,11 @@ constellate_criteria <- function(..., criteria_names, window_hours, join_key,
     }
   }
 
-  # Value argument not from set of options
-  value <- match.arg(value)
-
-  # Must pass result_var if select result option
-  if (value == "result" & missing(result_var)) {
-    stop("Need to specify result_var")
-  }
-
-  # If result_var is supplied, ensure it is in all data frames
-  if (!missing(result_var)) {
-    for (i in seq_len(length(criteria_list))) {
-      if (sum(grepl(result_var, names(criteria_list[[i]]))) == 0) {
-        stop("'result_var' is not a column name in all time series data frames")
-      }
+  # Ensure time_var variable in all data frames is class POSIXct
+  for (i in seq_len(length(criteria_list))) {
+    if (!("POSIXct" %in% class(criteria_list[[i]][[time_var]]))) {
+      stop(paste0("'time_var' column in all time series data frames",
+        " must be POSIXct class"))
     }
   }
 
@@ -153,19 +163,23 @@ constellate_criteria <- function(..., criteria_names, window_hours, join_key,
       " of data frames does not equal the number of names."))
   }
 
-  # Number of hour windows matches number of data frames passed
-  if (length(criteria_list) != length(window_hours) &
-      length(window_hours) != 1) {
-    stop(paste0("Need to pass a single window hour length for all criteria",
-      " data frames or a window hour length for each criteria data frame."))
+  # If result_var is supplied, ensure it is in all data frames
+  if (!missing(result_var)) {
+    for (i in seq_len(length(criteria_list))) {
+      if (sum(grepl(result_var, names(criteria_list[[i]]))) == 0) {
+        stop(paste0("'result_var' is not a column name in all time series",
+          " data frames"))
+      }
+    }
+  }
+
+  # Must pass result_var if select result option
+  if (value == "result" & missing(result_var)) {
+    stop("Need to specify result_var")
   }
 
   ############ Prep data for joins --------------------------------------------
   for (i in seq_len(length(criteria_list))) {
-    # Ensure class of time_var
-    set(criteria_list[[i]], j = time_var,
-      value = fastPOSIXct(criteria_list[[i]][[time_var]], tz = "GMT"))
-
     # Create criteria variable based on value argument
     if (value == "time") {
       # Subset data frames
